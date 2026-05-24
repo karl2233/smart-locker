@@ -1,5 +1,15 @@
-import { Box, VStack, Text, Link as ChakraLink, Divider } from "@chakra-ui/react";
-import { NavLink } from "react-router-dom";
+import {
+  Box,
+  VStack,
+  Text,
+  Link as ChakraLink,
+  Divider,
+  Button,
+  Spacer,
+} from "@chakra-ui/react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../../../app/providers/AuthProvider";
 
 const navItems = [
   {
@@ -21,6 +31,17 @@ const navItems = [
 ];
 
 const AdminSidebar = () => {
+  const navigate = useNavigate();
+  const { signOut } = useContext(AuthContext);
+
+  const handleLogout = async () => {
+    await signOut();
+
+    navigate("/signin", {
+      replace: true,
+    });
+  };
+
   return (
     <Box
       w="280px"
@@ -31,29 +52,39 @@ const AdminSidebar = () => {
       boxShadow="sidebar"
       px={4}
       py={6}
+      display="flex"
+      flexDirection="column"
     >
-      <Text fontSize="2xl" fontWeight="700" color="sidebar.title" mb={2}>
-        Restaurant Admin
-      </Text>
+      <Box>
+        <Text fontSize="2xl" fontWeight="700" color="sidebar.title" mb={2}>
+          Restaurant Admin
+        </Text>
 
-      <Text variant="sidebarSubtitle" mb={6}>
-        Dashboard Navigation
-      </Text>
+        <Text variant="sidebarSubtitle" mb={6}>
+          Dashboard Navigation
+        </Text>
 
-      <Divider mb={6} borderColor="sidebar.border" />
+        <Divider mb={6} borderColor="sidebar.border" />
 
-      <VStack align="stretch" spacing={2}>
-        {navItems.map((item) => (
-          <ChakraLink
-            key={item.path}
-            as={NavLink}
-            to={item.path}
-            variant="sidebarItem"
-          >
-            {item.label}
-          </ChakraLink>
-        ))}
-      </VStack>
+        <VStack align="stretch" spacing={2}>
+          {navItems.map((item) => (
+            <ChakraLink
+              key={item.path}
+              as={NavLink}
+              to={item.path}
+              variant="sidebarItem"
+            >
+              {item.label}
+            </ChakraLink>
+          ))}
+        </VStack>
+      </Box>
+
+      <Spacer />
+
+      <Button colorScheme="red" mt={6} onClick={handleLogout}>
+        Logout
+      </Button>
     </Box>
   );
 };

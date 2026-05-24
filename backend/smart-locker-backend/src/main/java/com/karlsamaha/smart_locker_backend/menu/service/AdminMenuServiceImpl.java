@@ -10,6 +10,7 @@ import com.karlsamaha.smart_locker_backend.menu.entity.Item;
 import com.karlsamaha.smart_locker_backend.menu.exception.CategorySelectedNotFoundException;
 import com.karlsamaha.smart_locker_backend.menu.repository.ItemRepository;
 import org.springframework.stereotype.Service;
+import com.karlsamaha.smart_locker_backend.menu.exception.ItemNotFoundException;
 
 import java.util.List;
 
@@ -36,7 +37,7 @@ public class AdminMenuServiceImpl implements AdminMenuService {
     }
 
     @Override
-    public void createItem(CreateItemRequestDto request) {
+    public ItemResponseDto createItem(CreateItemRequestDto request) {
 
         CategorySelected categorySelected = categorySelectedRepository
                 .findById(request.getCategorySelectedId())
@@ -56,11 +57,33 @@ public class AdminMenuServiceImpl implements AdminMenuService {
         item.setPrice(request.getPrice());
         item.setItemImageUrl(imageUrl);
 
-        itemRepository.save(item);
+        Item savedItem = itemRepository.save(item);
+
+        return new ItemResponseDto(
+                savedItem.getItemId(),
+                savedItem.getCategorySelected().getCategorySelectedId(),
+                savedItem.getItemTitle(),
+                savedItem.getItemDesc(),
+                savedItem.getItemImageUrl(),
+                savedItem.getPrice()
+        );
     }
 
     @Override
     public List<ItemResponseDto> getItemsByCategorySelectedId(Long categorySelectedId) {
         return itemRepository.findItemsByCategorySelectedId(categorySelectedId);
+    }
+
+    @Override
+    public Long deleteItem(Long itemId) {
+
+        Item item =
+                itemRepository
+                        .findById(itemId)
+                        .orElseThrow(ItemNotFoundException::new);
+
+        itemRepository.delete(item);
+
+        return itemId;
     }
 }

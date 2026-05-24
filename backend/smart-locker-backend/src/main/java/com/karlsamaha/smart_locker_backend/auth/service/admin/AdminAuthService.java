@@ -8,6 +8,8 @@ import com.karlsamaha.smart_locker_backend.auth.dto.admin.requests.AdminSignupRe
 import com.karlsamaha.smart_locker_backend.auth.dto.admin.response.AdminAuthResponse;
 import com.karlsamaha.smart_locker_backend.auth.entity.Role;
 import com.karlsamaha.smart_locker_backend.auth.entity.User;
+import com.karlsamaha.smart_locker_backend.auth.exception.InvalidCredentialsException;
+import com.karlsamaha.smart_locker_backend.auth.exception.SignupException;
 import com.karlsamaha.smart_locker_backend.auth.repository.RoleRepository;
 import com.karlsamaha.smart_locker_backend.auth.repository.UserRepository;
 import com.karlsamaha.smart_locker_backend.security.jwt.JwtService;
@@ -40,12 +42,15 @@ public class AdminAuthService {
     }
 
     public AdminAuthResponse signup(AdminSignupRequest request) {
+
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new SignupException("Email already exists");
         }
 
         Role adminRole = roleRepository.findByRoleName(DEFAULT_SIGNUP_ROLE)
-                .orElseThrow(() -> new RuntimeException("Role not found: " + DEFAULT_SIGNUP_ROLE));
+                .orElseThrow(() ->
+                        new SignupException("Role not found: " + DEFAULT_SIGNUP_ROLE)
+                );
 
         User user = new User();
         user.setName(request.getName());
@@ -61,26 +66,32 @@ public class AdminAuthService {
                 .authorities(savedUser.getRole().getRoleName())
                 .build();
 
-        String jwtToken = jwtService.generateToken(userDetails, savedUser.getRole().getRoleName());
+        String jwtToken = jwtService.generateToken(
+                userDetails,
+                savedUser.getRole().getRoleName()
+        );
 
         return new AdminAuthResponse(jwtToken);
     }
 
     public AdminAuthResponse signin(AdminSigninRequest request) {
+
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+                .orElseThrow(() ->
+                        new InvalidCredentialsException("Invalid email or password")
+                );
 
         boolean passwordMatches = passwordEncoder.matches(
-                request.getPassword(),   // raw password from request
-                user.getPassword()       // hashed password from DB
+                request.getPassword(),
+                user.getPassword()
         );
 
         if (!passwordMatches) {
-            throw new RuntimeException("Invalid email or password");
+            throw new InvalidCredentialsException("Invalid email or password");
         }
 
         if (!"ROLE_ADMIN".equals(user.getRole().getRoleName())) {
-            throw new RuntimeException("Access denied: only admin can sign in");
+            throw new InvalidCredentialsException("Access denied: only admin can sign in");
         }
 
         UserDetails userDetails = org.springframework.security.core.userdetails.User
@@ -89,7 +100,10 @@ public class AdminAuthService {
                 .authorities(user.getRole().getRoleName())
                 .build();
 
-        String jwtToken = jwtService.generateToken(userDetails, user.getRole().getRoleName());
+        String jwtToken = jwtService.generateToken(
+                userDetails,
+                user.getRole().getRoleName()
+        );
 
         return new AdminAuthResponse(jwtToken);
     }

@@ -44,11 +44,28 @@ const getItemsByCategorySelectedId = async (categorySelectedId) => {
   }
 };
 
+const deleteItem = async (itemId) => {
+  try {
+    const response = await axiosInstance.delete(
+      `/admin/api/menu/items/${itemId}`
+    );
+
+    return response.data;
+  } catch (error) {
+    throw (
+      error.response?.data || {
+        message: "Failed to delete item",
+      }
+    );
+  }
+};
+
 
 const MenuService = {
   getSelectedCategories,
   createItem,
   getItemsByCategorySelectedId,
+  deleteItem,
 };
 
 export default MenuService;

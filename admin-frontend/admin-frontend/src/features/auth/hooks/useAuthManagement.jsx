@@ -17,7 +17,7 @@ export const useAuthManagement = () => {
     if (error) {
       toast.error(error);
     }
-  }, [error]);
+  }, [error, clearError]);
 
   const handleSignin = async (email, password) => {
     return signin(email, password);

@@ -11,17 +11,42 @@ import {
 
 import AdminPageContainer from "../components/AdminPageContainer";
 import useMenuManagementPage from "../hooks/useMenuManagementPage";
+import ConfirmDialog from "../../../shared/components/components/ConfirmDialog";
+import MenuItemCard from "../components/MenuItemCard";
+import UpdateMenuItemForm from "../components/UpdateMenuItemForm";
+import AppLoadingScreen from "../../../shared/components/components/AppLoadingScreen ";
 
 const MenuManagementPage = () => {
   const {
     categories,
     itemSelected,
     loading,
+
     formData,
+    updateFormData,
+    itemBeingUpdated,
+
     handleCategoryClick,
     handleInputChange,
     handleCreateItem,
+
+    handleOpenUpdateItem,
+    handleCloseUpdateItem,
+    handleUpdateInputChange,
+    handleSubmitUpdateItem,
+
+    handleDeleteItem,
+
+    confirmBox,
+    cancelRef,
+    closeConfirmBox,
+    confirmAction,
   } = useMenuManagementPage();
+
+  
+    if (loading) {
+    return <AppLoadingScreen />;
+      }
 
   return (
     <AdminPageContainer
@@ -37,45 +62,18 @@ const MenuManagementPage = () => {
           align="start"
           spacing={6}
           w="100%"
-          flexDirection={{
-            base: "column",
-            lg: "row",
-          }}
+          flexDirection={{ base: "column", lg: "row" }}
         >
-          {/* Categories List */}
-          <Box
-            w={{
-              base: "100%",
-              lg: "350px",
-            }}
-          >
+          <Box w={{ base: "100%", lg: "320px" }}>
             {loading && categories.length === 0 ? (
               <Spinner color="brand.500" />
             ) : (
               <VStack
-                align="start"
+                align="stretch"
                 spacing={4}
-                w="100%"
-                maxH="500px"
+                maxH="650px"
                 overflowY="auto"
                 pr={1}
-                sx={{
-                  "&::-webkit-scrollbar": {
-                    width: "8px",
-                  },
-                  "&::-webkit-scrollbar-track": {
-                    background: "transparent",
-                  },
-                  "&::-webkit-scrollbar-thumb": {
-                    background: "#CBD5E1",
-                    borderRadius: "999px",
-                  },
-                  "&::-webkit-scrollbar-thumb:hover": {
-                    background: "#94A3B8",
-                  },
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "#CBD5E1 transparent",
-                }}
               >
                 {categories.map((category) => {
                   const isSelected =
@@ -91,9 +89,8 @@ const MenuManagementPage = () => {
                       borderRadius="xl"
                       boxShadow="card"
                       p={4}
-                      w="100%"
                       cursor="pointer"
-                      transition="all 0.2s ease"
+                      transition="0.2s"
                       onClick={() =>
                         handleCategoryClick(category.categorySelectedId)
                       }
@@ -103,20 +100,12 @@ const MenuManagementPage = () => {
                       }}
                     >
                       <HStack justify="space-between">
-                        <Text
-                          color="card.title"
-                          fontWeight="700"
-                          fontSize="md"
-                        >
+                        <Text color="card.title" fontWeight="700">
                           {category.categoryName}
                         </Text>
 
                         {isSelected && (
-                          <Text
-                            color="brand.500"
-                            fontSize="sm"
-                            fontWeight="700"
-                          >
+                          <Text color="brand.500" fontSize="sm" fontWeight="700">
                             Selected
                           </Text>
                         )}
@@ -128,19 +117,14 @@ const MenuManagementPage = () => {
             )}
           </Box>
 
-          {/* Form + Items */}
           {itemSelected.isCategorySelected && (
             <HStack
               align="start"
               spacing={6}
               flex="1"
               w="100%"
-              flexDirection={{
-                base: "column",
-                xl: "row",
-              }}
+              flexDirection={{ base: "column", xl: "row" }}
             >
-              {/* Create Item Form */}
               <Box
                 as="form"
                 onSubmit={handleCreateItem}
@@ -199,134 +183,74 @@ const MenuManagementPage = () => {
                 </VStack>
               </Box>
 
-{/* Items List */}
-<Box
-  bg="card.bg"
-  border="2px solid"
-  borderColor="grayBrand.300"
-  borderRadius="xl"
-  boxShadow="card"
-  p={5}
-  w={{
-    base: "100%",
-    xl: "380px",
-  }}
-  h="500px"
->
-  <VStack
-    align="stretch"
-    spacing={4}
-    h="100%"
-  >
-    <HStack justify="space-between">
-      <Text
-        color="card.title"
-        fontWeight="700"
-        fontSize="lg"
-      >
-        Items
-      </Text>
-
-      <Text
-        color="gray.500"
-        fontSize="sm"
-        fontWeight="600"
-      >
-        {itemSelected.items.length} item
-        {itemSelected.items.length !== 1 ? "s" : ""}
-      </Text>
-    </HStack>
-
-    {/* Scrollable Items */}
-    <VStack
-      align="stretch"
-      spacing={3}
-      flex="1"
-      overflowY="auto"
-      pr={1}
-      sx={{
-        "&::-webkit-scrollbar": {
-          width: "8px",
-        },
-
-        "&::-webkit-scrollbar-track": {
-          background: "transparent",
-        },
-
-        "&::-webkit-scrollbar-thumb": {
-          background: "#CBD5E1",
-          borderRadius: "999px",
-        },
-
-        "&::-webkit-scrollbar-thumb:hover": {
-          background: "#94A3B8",
-        },
-
-        scrollbarWidth: "thin",
-        scrollbarColor: "#CBD5E1 transparent",
-      }}
-    >
-      {loading && itemSelected.items.length === 0 ? (
-        <Spinner color="brand.500" />
-      ) : itemSelected.items.length === 0 ? (
-        <Text
-          color="gray.500"
-          fontSize="sm"
-        >
-          No items found for this category.
-        </Text>
-      ) : (
-        itemSelected.items.map((item) => (
-          <HStack
-            key={item.itemId}
-            justify="space-between"
-            align="center"
-            border="1px solid"
-            borderColor="grayBrand.300"
-            borderRadius="lg"
-            p={3}
-            bg="white"
-            w="100%"
-          >
-            <VStack
-              align="start"
-              spacing={1}
-              flex="1"
-            >
-              <Text
-                color="card.title"
-                fontWeight="700"
-                fontSize="sm"
+              <Box
+                bg="card.bg"
+                border="2px solid"
+                borderColor="grayBrand.300"
+                borderRadius="xl"
+                boxShadow="card"
+                p={5}
+                w={{ base: "100%", xl: "420px" }}
+                h="650px"
               >
-                {item.itemTitle}
-              </Text>
+                <VStack align="stretch" spacing={4} h="100%">
+                  <HStack justify="space-between">
+                    <Text color="card.title" fontWeight="700" fontSize="lg">
+                      Items
+                    </Text>
 
-              <Text
-                color="gray.500"
-                fontSize="xs"
-                noOfLines={1}
-              >
-                {item.itemDesc}
-              </Text>
-            </VStack>
+                    <Text color="gray.500" fontSize="sm" fontWeight="600">
+                      {itemSelected.items.length} item
+                      {itemSelected.items.length !== 1 ? "s" : ""}
+                    </Text>
+                  </HStack>
 
-            <Text
-              color="brand.500"
-              fontWeight="700"
-              fontSize="sm"
-            >
-              ${item.price}
-            </Text>
-          </HStack>
-        ))
-      )}
-    </VStack>
-  </VStack>
-</Box>
+                  <VStack
+                    align="stretch"
+                    spacing={4}
+                    overflowY="auto"
+                    flex="1"
+                    pr={1}
+                  >
+                    {loading && itemSelected.items.length === 0 ? (
+                      <Spinner color="brand.500" />
+                    ) : itemSelected.items.length === 0 ? (
+                      <Text color="gray.500" fontSize="sm">
+                        No items found for this category.
+                      </Text>
+                    ) : (
+                      itemSelected.items.map((item) => (
+                        <MenuItemCard
+                          key={item.itemId}
+                          item={item}
+                          onUpdateClick={handleOpenUpdateItem}
+                          onDeleteClick={handleDeleteItem}
+                        />
+                      ))
+                    )}
+                  </VStack>
+                </VStack>
+              </Box>
             </HStack>
           )}
         </HStack>
       </VStack>
+
+      <UpdateMenuItemForm
+        isOpen={!!itemBeingUpdated}
+        onClose={handleCloseUpdateItem}
+        updateFormData={updateFormData}
+        loading={loading}
+        onInputChange={handleUpdateInputChange}
+        onSubmit={handleSubmitUpdateItem}
+      />
+
+      <ConfirmDialog
+        confirmBox={confirmBox}
+        cancelRef={cancelRef}
+        closeConfirmBox={closeConfirmBox}
+        confirmAction={confirmAction}
+      />
     </AdminPageContainer>
   );
 };

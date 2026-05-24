@@ -27,4 +27,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     List<ItemResponseDto> findItemsByCategorySelectedId(
             @Param("categorySelectedId") Long categorySelectedId
     );
+    boolean existsByCategorySelected_CategorySelectedId(
+            Long categorySelectedId
+    );
 }

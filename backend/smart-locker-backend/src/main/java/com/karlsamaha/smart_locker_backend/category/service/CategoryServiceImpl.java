@@ -8,8 +8,11 @@ import com.karlsamaha.smart_locker_backend.category.dto.resp.CategoryResponseDto
 import com.karlsamaha.smart_locker_backend.category.dto.resp.CategorySelectedResponseDto;
 import com.karlsamaha.smart_locker_backend.category.entity.Category;
 import com.karlsamaha.smart_locker_backend.category.entity.CategorySelected;
+import com.karlsamaha.smart_locker_backend.category.exception.CategoryException;
+import com.karlsamaha.smart_locker_backend.category.exception.CategorySelectedException;
 import com.karlsamaha.smart_locker_backend.category.repository.CategoryRepository;
 import com.karlsamaha.smart_locker_backend.category.repository.CategorySelectedRepository;
+import com.karlsamaha.smart_locker_backend.menu.repository.ItemRepository;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
@@ -21,10 +24,16 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategorySelectedRepository categorySelectedRepository;
+    private final ItemRepository itemRepository;
 
-    public CategoryServiceImpl(CategoryRepository categoryRepository, CategorySelectedRepository CategorySelectedRepository, CategorySelectedRepository categorySelectedRepository) {
+    public CategoryServiceImpl(
+            CategoryRepository categoryRepository,
+            CategorySelectedRepository categorySelectedRepository,
+            ItemRepository itemRepository
+    ) {
         this.categoryRepository = categoryRepository;
         this.categorySelectedRepository = categorySelectedRepository;
+        this.itemRepository = itemRepository;
     }
 
     @Override
@@ -103,7 +112,6 @@ public class CategoryServiceImpl implements CategoryService {
             }
         }
 
-        // 🔥 ALWAYS return ALL selected categories
         List<CategorySelected> allSelected = categorySelectedRepository.findAll();
 
         return allSelected.stream()
@@ -112,5 +120,66 @@ public class CategoryServiceImpl implements CategoryService {
                         cs.getCategory().getCategoryName()
                 ))
                 .toList();
+    }
+
+    @Override
+    public void deleteSelectedCategory(Long categorySelectedId) {
+
+        CategorySelected categorySelected = categorySelectedRepository
+                .findById(categorySelectedId)
+                .orElseThrow(() ->
+                        new CategorySelectedException(
+                                "Selected category not found"
+                        )
+                );
+
+        boolean hasItems = itemRepository
+                .existsByCategorySelected_CategorySelectedId(categorySelectedId);
+
+        if (hasItems) {
+            throw new CategorySelectedException(
+                    "Delete items first, then delete this category"
+            );
+        }
+
+        categorySelectedRepository.delete(categorySelected);
+    }
+
+    @Override
+    public void deleteCategory(Long categoryId) {
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() ->
+                        new CategoryException("Category not found")
+                );
+
+        boolean isSelected = categorySelectedRepository
+                .existsByCategory_CategoryId(categoryId);
+
+        if (isSelected) {
+            throw new CategoryException(
+                    "Unselect this category first, then delete it"
+            );
+        }
+
+        categoryRepository.delete(category);
+    }
+
+    @Override
+    public String updateCategory(
+            Long categoryId,
+            String categoryName
+    ) {
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() ->
+                        new CategoryException("Category not found")
+                );
+
+        category.setCategoryName(categoryName);
+
+        categoryRepository.save(category);
+
+        return "Category updated successfully";
     }
 }

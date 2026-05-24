@@ -1,13 +1,14 @@
 package com.karlsamaha.smart_locker_backend.menu.controller;
 
 
+import com.karlsamaha.smart_locker_backend.common.response.ErrorResponse;
 import com.karlsamaha.smart_locker_backend.common.response.ListSuccessResponse;
 import com.karlsamaha.smart_locker_backend.common.response.SuccessResponse;
 import com.karlsamaha.smart_locker_backend.menu.dto.request.CreateItemRequestDto;
 import com.karlsamaha.smart_locker_backend.menu.dto.response.CategorySelectedResponseDto;
 import com.karlsamaha.smart_locker_backend.menu.dto.response.ItemResponseDto;
 import com.karlsamaha.smart_locker_backend.menu.service.AdminMenuService;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,21 +42,18 @@ public class AdminMenuController {
     }
 
 
-    @PostMapping(
-            value = "/create-items",
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
-    )
-    public ResponseEntity<SuccessResponse<String>> createItem(
+    @PostMapping("/create-items")
+    public ResponseEntity<SuccessResponse<ItemResponseDto>> createItem(
             @ModelAttribute CreateItemRequestDto request
     ) {
+        ItemResponseDto item = adminMenuService.createItem(request);
 
-        adminMenuService.createItem(request);
-
-        SuccessResponse<String> response = new SuccessResponse<>(
-                LocalDateTime.now(),
-                "Item created successfully",
-                null
-        );
+        SuccessResponse<ItemResponseDto> response =
+                new SuccessResponse<>(
+                        LocalDateTime.now(),
+                        "Item created successfully",
+                        item
+                );
 
         return ResponseEntity.ok(response);
     }
@@ -76,5 +74,39 @@ public class AdminMenuController {
                 );
 
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/items/{itemId}")
+    public ResponseEntity<?> deleteItem(
+            @PathVariable Long itemId
+    ) {
+
+        try {
+
+            Long deletedItemId =
+                    adminMenuService.deleteItem(itemId);
+
+            SuccessResponse<Long> response =
+                    new SuccessResponse<>(
+                            LocalDateTime.now(),
+                            "Item deleted successfully",
+                            deletedItemId
+                    );
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+
+            ErrorResponse errorResponse =
+                    new ErrorResponse(
+                            LocalDateTime.now(),
+                            HttpStatus.BAD_REQUEST.value(),
+                            e.getMessage()
+                    );
+
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(errorResponse);
+        }
     }
 }

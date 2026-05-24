@@ -8,6 +8,7 @@ import java.util.List;
 
 public interface AdminMenuService {
     List<CategorySelectedResponseDto> getSelectedCategories();
-    void createItem(CreateItemRequestDto request);
+    ItemResponseDto createItem(CreateItemRequestDto request);
     List<ItemResponseDto> getItemsByCategorySelectedId(Long categorySelectedId);
+    Long deleteItem(Long itemId);
 }

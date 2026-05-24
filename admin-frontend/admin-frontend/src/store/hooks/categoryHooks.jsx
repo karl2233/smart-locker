@@ -5,6 +5,9 @@ import {
   fetchCategories,
   toggleCategoryClicked,
   saveSelectedCategories,
+  deleteSelectedCategory,
+  deleteCategory,
+  updateCategory,
 } from "../slices/categorySlice";
 
 // Selector hooks
@@ -46,6 +49,15 @@ export const useCategoryActions = () => {
 
     saveSelectedCategories: (categoryIds) =>
       dispatch(saveSelectedCategories(categoryIds)),
+
+    deleteSelectedCategory: (categorySelectedId) =>
+      dispatch(deleteSelectedCategory(categorySelectedId)),
+
+    deleteCategory: (categoryId) =>
+      dispatch(deleteCategory(categoryId)),
+
+    updateCategory: (categoryId, categoryName) =>
+      dispatch(updateCategory({ categoryId, categoryName })),
 
     resetStatus: () => dispatch(resetStatus()),
   };

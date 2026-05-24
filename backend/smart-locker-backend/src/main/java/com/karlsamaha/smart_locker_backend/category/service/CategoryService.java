@@ -12,4 +12,10 @@ public interface CategoryService {
     CategoryResponseDto createCategory(CategoryRequestDto categoryRequestDto);
     CategoryManagementResponseDto getCategoryManagementData();
     List<CategoryResponseDto> selectCategories(CategoriesSelectedRequestDto requestDto);
+    void deleteSelectedCategory(Long categorySelectedId);
+    void deleteCategory(Long categoryId);
+    String updateCategory(
+            Long categoryId,
+            String categoryName
+    );
 }

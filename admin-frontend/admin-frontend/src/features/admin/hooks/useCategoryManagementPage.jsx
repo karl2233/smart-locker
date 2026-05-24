@@ -27,22 +27,23 @@ const useCategoryManagementPage = () => {
     fetchCategories,
     toggleCategoryClicked,
     saveSelectedCategories,
+    updateCategory,
+    deleteSelectedCategory,
+    deleteCategory,
   } = useCategoryManager();
-
-  const handleToggleCategoryClicked = (categoryId) => {
-    setSelectedCategoryIds((prev) => {
-      if (prev.includes(categoryId)) {
-        return prev.filter((id) => id !== categoryId);
-      }
-
-      return [...prev, categoryId];
-    });
-
-    toggleCategoryClicked(categoryId);
-  };
 
   const handleCategoryNameChange = (e) => {
     setCategoryName(e.target.value);
+  };
+
+  const handleToggleCategoryClicked = (categoryId) => {
+    setSelectedCategoryIds((prev) =>
+      prev.includes(categoryId)
+        ? prev.filter((id) => id !== categoryId)
+        : [...prev, categoryId]
+    );
+
+    toggleCategoryClicked(categoryId);
   };
 
   const handleCreateCategory = () => {
@@ -56,12 +57,42 @@ const useCategoryManagementPage = () => {
   };
 
   const handleSaveSelectedCategories = () => {
+    if (selectedCategoryIds.length === 0) return;
+
     openConfirmBox({
       title: "Save Selected Categories",
-      message:
-        "Would you like to continue saving these selected categories?",
-      action: () =>
-        saveSelectedCategories(selectedCategoryIds),
+      message: "Would you like to continue saving these selected categories?",
+      action: () => saveSelectedCategories(selectedCategoryIds),
+    });
+  };
+
+  const handleUpdateCategory = (categoryToUpdateId, updatedCategoryName) => {
+    if (!categoryToUpdateId || !updatedCategoryName.trim()) return;
+
+    openConfirmBox({
+      title: "Update Category",
+      message: "Would you like to continue updating this category?",
+      action: () => updateCategory(categoryToUpdateId, updatedCategoryName),
+    });
+  };
+
+  const handleDeleteCategory = (categoryId) => {
+    if (!categoryId) return;
+
+    openConfirmBox({
+      title: "Delete Category",
+      message: "Would you like to continue deleting this category?",
+      action: () => deleteCategory(categoryId),
+    });
+  };
+
+  const handleDeleteSelectedCategory = (categorySelectedId) => {
+    if (!categorySelectedId) return;
+
+    openConfirmBox({
+      title: "Delete Selected Category",
+      message: "Would you like to continue removing this selected category?",
+      action: () => deleteSelectedCategory(categorySelectedId),
     });
   };
 
@@ -70,9 +101,14 @@ const useCategoryManagementPage = () => {
   }, []);
 
   useEffect(() => {
+      if (status === "loading") {
+         return;
+      }
+
     if (status === "success") {
       toast.success(statusDesc);
       setCategoryName("");
+      setSelectedCategoryIds([]);
       resetStatus();
     }
 
@@ -84,17 +120,22 @@ const useCategoryManagementPage = () => {
 
   return {
     categoryName,
+    selectedCategoryIds,
+
     categories,
     categoriesSelected,
     categoriesSelectedList,
     loading,
     status,
     statusDesc,
+
     handleCategoryNameChange,
     handleCreateCategory,
     handleToggleCategoryClicked,
     handleSaveSelectedCategories,
-    resetStatus,
+    handleUpdateCategory,
+    handleDeleteCategory,
+    handleDeleteSelectedCategory,
 
     confirmBox,
     cancelRef,

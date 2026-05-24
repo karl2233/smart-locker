@@ -73,4 +73,58 @@ public class AdminCategoryController {
 
         return ResponseEntity.ok(response);
     }
+
+    @DeleteMapping("/selected-categories/{categorySelectedId}")
+    public ResponseEntity<SuccessResponse<Void>> deleteSelectedCategory(
+            @PathVariable Long categorySelectedId
+    ) {
+
+        categoryService.deleteSelectedCategory(categorySelectedId);
+
+        SuccessResponse<Void> response =
+                new SuccessResponse<>(
+                        LocalDateTime.now(),
+                        "Selected category deleted successfully",
+                        null
+                );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{categoryId}")
+    public ResponseEntity<SuccessResponse<Void>> deleteCategory(
+            @PathVariable Long categoryId
+    ) {
+        categoryService.deleteCategory(categoryId);
+
+        SuccessResponse<Void> response =
+                new SuccessResponse<>(
+                        LocalDateTime.now(),
+                        "Category deleted successfully",
+                        null
+                );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{categoryId}")
+    public ResponseEntity<SuccessResponse<String>> updateCategory(
+            @PathVariable Long categoryId,
+            @RequestParam String categoryName
+    ) {
+
+        String message = categoryService.updateCategory(
+                categoryId,
+                categoryName
+        );
+
+        SuccessResponse<String> response =
+                new SuccessResponse<>(
+                        LocalDateTime.now(),
+                        message,
+                        null
+                );
+
+        return ResponseEntity.ok(response);
+    }
 }

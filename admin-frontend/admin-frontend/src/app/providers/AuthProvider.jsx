@@ -1,7 +1,10 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { AuthService } from "../../services/api/AuthService";
 import { cookieManager } from "../../shared/utils/cookie";
 import { getTokenExpiration, isTokenValid } from "../../shared/utils/token";
+import AppLoadingScreen from "../../shared/components/components/AppLoadingScreen "; 
 
 export const AuthContext = createContext(null);
 
@@ -17,21 +20,15 @@ export const AuthProvider = ({ children }) => {
         const token = cookieManager.get("authToken");
 
         if (!token) {
-          setIsAuthenticated(false);
-          setUser(null);
           return;
         }
 
         if (!isTokenValid(token)) {
-          cookieManager.remove("authToken");
-          setIsAuthenticated(false);
-          setUser(null);
           return;
         }
+
         setIsAuthenticated(true);
       } catch (err) {
-        setIsAuthenticated(false);
-        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -40,32 +37,44 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
-const signin = useCallback(async (email, password) => {
-  setLoading(true);
-  setError("");
+    const signOut = () => {
+    cookieManager.remove("authToken");
 
-  try {
-    const response = await AuthService.signin({ email, password });
+    setIsAuthenticated(false);
+    setUser(null);
+  };
 
-    const accessToken = response.data.data.token;
-    const responseUser = response.data.data.user ?? null;
+    const signin = useCallback(async (email, password) => {
+      setLoading(true);
+      setError("");
 
-    const expirationDate = getTokenExpiration(accessToken);
+      try {
+        const response = await AuthService.signin({ email, password });
 
-    cookieManager.set("authToken", accessToken, expirationDate);
+        const accessToken = response.data.token;
+        const responseUser = response.data.user ?? null;
 
-    setIsAuthenticated(true);
-    setUser(responseUser);
+        const expirationDate = getTokenExpiration(accessToken);
 
-    return response.data;
-  } catch (err) {
-    const errorMessage = err.response?.data?.message || "Signin failed";
-    setError(errorMessage);
-    throw err;
-  } finally {
-    setLoading(false);
-  }
-}, []);
+        cookieManager.set("authToken", accessToken, expirationDate);
+
+        setIsAuthenticated(true);
+        setUser(responseUser);
+
+        return response;
+      }
+      catch (err) {
+        const errorMessage =
+          err.response?.data?.message || "Signin failed";
+
+        setError(errorMessage);
+
+        return null;
+      }
+    finally {
+            setLoading(false);
+          }
+    }, []);
 
   const signup = useCallback(async (payload) => {
     setLoading(true);
@@ -96,12 +105,13 @@ const signin = useCallback(async (email, password) => {
       signin,
       signup,
       clearError,
+       signOut,
     }),
     [isAuthenticated, user, loading, error, signin, signup, clearError]
   );
 
   if (loading) {
-    return <div>Initializing...</div>;
+    return <AppLoadingScreen />;
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -7,9 +7,7 @@ export const createCategory = createAsyncThunk(
     try {
       return await CategoryService.createCategory({ categoryName });
     } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data || { message: "Failed to create category" }
-      );
+      return thunkAPI.rejectWithValue(error);
     }
   }
 );
@@ -20,9 +18,7 @@ export const fetchCategories = createAsyncThunk(
     try {
       return await CategoryService.getAllCategories();
     } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data || { message: "Failed to fetch categories" }
-      );
+      return thunkAPI.rejectWithValue(error);
     }
   }
 );
@@ -31,23 +27,61 @@ export const saveSelectedCategories = createAsyncThunk(
   "category/saveSelectedCategories",
   async (categoryIds, thunkAPI) => {
     try {
-      const response = await CategoryService.selectCategories(categoryIds);
-
-      return response; // ListSuccessResponse
+      return await CategoryService.selectCategories(categoryIds);
     } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data || {
-          message: "Failed to save selected categories",
-        }
+      return thunkAPI.rejectWithValue(error);
+    }
+  }
+);
+
+export const deleteSelectedCategory = createAsyncThunk(
+  "category/deleteSelectedCategory",
+  async (categorySelectedId, thunkAPI) => {
+    try {
+      await CategoryService.deleteSelectedCategory(categorySelectedId);
+      return categorySelectedId;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error);
+    }
+  }
+);
+
+export const deleteCategory = createAsyncThunk(
+  "category/deleteCategory",
+  async (categoryId, thunkAPI) => {
+    try {
+      await CategoryService.deleteCategory(categoryId);
+      return categoryId;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error);
+    }
+  }
+);
+
+export const updateCategory = createAsyncThunk(
+  "category/updateCategory",
+  async ({ categoryId, categoryName }, thunkAPI) => {
+    try {
+      const response = await CategoryService.updateCategory(
+        categoryId,
+        categoryName
       );
+
+      return {
+        categoryId,
+        categoryName,
+        message: response.message,
+      };
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error);
     }
   }
 );
 
 const initialState = {
   categories: [],
-  categoriesSelected: false, 
-  categoriesSelectedList: [], 
+  categoriesSelected: false,
+  categoriesSelectedList: [],
   loading: false,
   status: null,
   statusMessage: "",
@@ -73,7 +107,6 @@ const categorySlice = createSlice({
         category.clicked = !category.clicked;
       }
 
-      // 👇 recompute after toggle
       state.categoriesSelected = state.categories.some(
         (category) => category.clicked
       );
@@ -89,66 +122,160 @@ const categorySlice = createSlice({
       .addCase(createCategory.fulfilled, (state, action) => {
         state.loading = false;
         state.status = "success";
-        state.statusMessage = action.payload.message || "Category created successfully";
+        state.statusMessage =
+          action.payload.message || "Category created successfully";
+
         if (action.payload.data) {
-          state.categories.push(action.payload.data);
+          state.categories.push({
+            ...action.payload.data,
+            clicked: false,
+          });
         }
       })
       .addCase(createCategory.rejected, (state, action) => {
         state.loading = false;
         state.status = "failed";
         state.statusMessage =
-          action.payload?.message || "Failed to create category";
+          action.payload?.message ||
+          action.payload?.error ||
+          "Failed to create category";
       })
+
       .addCase(fetchCategories.pending, (state) => {
         state.loading = true;
         state.status = "loading";
         state.statusMessage = "";
       })
-   .addCase(fetchCategories.fulfilled, (state, action) => {
+      .addCase(fetchCategories.fulfilled, (state, action) => {
         state.loading = false;
         state.status = "success";
         state.statusMessage = action.payload.message;
 
-        console.log(action.payload.data.categoriesSelected);
-
-        const categories = action.payload.data.categories || [];
-        const categoriesSelected = action.payload.data.categoriesSelected || [];
+        const categories = action.payload.data?.categories || [];
+        const categoriesSelected = action.payload.data?.categoriesSelected || [];
 
         state.categoriesSelectedList = categoriesSelected;
 
         state.categories = categories.map((category) => ({
           ...category,
-          clicked:false,
+          clicked: false,
         }));
 
-        state.categoriesSelected = categoriesSelected.length > 0;
+        state.categoriesSelected = state.categories.some(
+          (category) => category.clicked
+        );
       })
       .addCase(fetchCategories.rejected, (state, action) => {
         state.loading = false;
         state.status = "failed";
         state.statusMessage =
-          action.payload?.message || "Failed to fetch categories";
+          action.payload?.message ||
+          action.payload?.error ||
+          "Failed to fetch categories";
       })
+
       .addCase(saveSelectedCategories.pending, (state) => {
         state.loading = true;
         state.status = "loading";
         state.statusMessage = "";
       })
-
       .addCase(saveSelectedCategories.fulfilled, (state, action) => {
         state.loading = false;
         state.status = "success";
-        state.statusMessage = action.payload.message;
-        // backend response
+        state.statusMessage =
+          action.payload.message || "Categories selected successfully";
+
         state.categoriesSelectedList = action.payload.documents || [];
       })
-
       .addCase(saveSelectedCategories.rejected, (state, action) => {
         state.loading = false;
         state.status = "failed";
         state.statusMessage =
-          action.payload?.message || "Failed to save selected categories";
+          action.payload?.message ||
+          action.payload?.error ||
+          "Failed to save selected categories";
+      })
+
+      .addCase(deleteSelectedCategory.pending, (state) => {
+        state.loading = true;
+        state.status = "loading";
+        state.statusMessage = "";
+      })
+      .addCase(deleteSelectedCategory.fulfilled, (state, action) => {
+        state.loading = false;
+        state.status = "success";
+        state.statusMessage = "Selected category deleted successfully";
+
+        state.categoriesSelectedList = state.categoriesSelectedList.filter(
+          (category) => category.categorySelectedId !== action.payload
+        );
+      })
+      .addCase(deleteSelectedCategory.rejected, (state, action) => {
+        state.loading = false;
+        state.status = "failed";
+        state.statusMessage =
+          action.payload?.message ||
+          action.payload?.error ||
+          "Failed to delete selected category";
+      })
+
+      .addCase(deleteCategory.pending, (state) => {
+        state.loading = true;
+        state.status = "loading";
+        state.statusMessage = "";
+      })
+      .addCase(deleteCategory.fulfilled, (state, action) => {
+        state.loading = false;
+        state.status = "success";
+        state.statusMessage = "Category deleted successfully";
+
+        state.categories = state.categories.filter(
+          (category) => category.categoryId !== action.payload
+        );
+      })
+      .addCase(deleteCategory.rejected, (state, action) => {
+        state.loading = false;
+        state.status = "failed";
+        state.statusMessage =
+          action.payload?.message ||
+          action.payload?.error ||
+          "Failed to delete category";
+      })
+
+      .addCase(updateCategory.pending, (state) => {
+        state.loading = true;
+        state.status = "loading";
+        state.statusMessage = "";
+      })
+      .addCase(updateCategory.fulfilled, (state, action) => {
+        state.loading = false;
+        state.status = "success";
+        state.statusMessage =
+          action.payload.message || "Category updated successfully";
+      
+        const category = state.categories.find(
+          (category) => category.categoryId === action.payload.categoryId
+        );
+
+        if (category) {
+          category.categoryName = action.payload.categoryName;
+        }
+
+          const selectedCategory = state.categoriesSelectedList.find(
+            (category) => category.categoryId === action.payload.categoryId
+          );
+
+          if (selectedCategory) {
+            selectedCategory.categoryName = action.payload.categoryName;
+          }
+      })
+      .addCase(updateCategory.rejected, (state, action) => {
+        state.loading = false;
+        state.status = "failed";
+        state.statusMessage =
+          action.payload?.message ||
+          action.payload?.error ||
+          "Failed to update category";
       });
   },
 });

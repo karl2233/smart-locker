@@ -3,6 +3,7 @@ import {
   fetchMenuSelectedCategories,
   fetchItemsByCategorySelectedId,
   createItem,
+  deleteItem,
   resetMenuStatus,
   setItemSelected,
   resetItemSelected,
@@ -37,6 +38,8 @@ export const useMenuActions = () => {
       dispatch(fetchItemsByCategorySelectedId(categorySelectedId)),
 
     createItem: (formData) => dispatch(createItem(formData)),
+
+    deleteItem: (itemId) => dispatch(deleteItem(itemId)),
 
     setItemSelected: (categorySelectedId) =>
       dispatch(setItemSelected(categorySelectedId)),

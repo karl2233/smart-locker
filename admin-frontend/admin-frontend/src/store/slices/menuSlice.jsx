@@ -38,6 +38,18 @@ export const fetchItemsByCategorySelectedId = createAsyncThunk(
   }
 );
 
+export const deleteItem = createAsyncThunk(
+  "menu/deleteItem",
+  async (itemId, thunkAPI) => {
+    try {
+       await MenuService.deleteItem(itemId);
+       return itemId;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error);
+    }
+  }
+);
+
 const initialState = {
   categories: [],
 
@@ -118,6 +130,8 @@ const menuSlice = createSlice({
         state.status = "success";
         state.statusMessage =
           action.payload.message || "Item created successfully";
+
+        state.itemSelected.items.push(action.payload.data);
       })
 
       .addCase(createItem.rejected, (state, action) => {
@@ -149,6 +163,28 @@ const menuSlice = createSlice({
           action.payload?.message || "Failed to fetch items";
 
         state.itemSelected.items = [];
+      })
+      .addCase(deleteItem.pending, (state) => {
+        state.loading = true;
+        state.status = "loading";
+        state.statusMessage = "";
+      })
+
+      .addCase(deleteItem.fulfilled, (state, action) => {
+        state.loading = false;
+        state.status = "success";
+        state.statusMessage = "Item deleted successfully";
+
+        state.itemSelected.items = state.itemSelected.items.filter(
+          (item) => item.itemId !== action.payload
+        );
+      })
+
+      .addCase(deleteItem.rejected, (state, action) => {
+        state.loading = false;
+        state.status = "failed";
+        state.statusMessage =
+          action.payload?.message || "Failed to delete item";
       });
 
   },

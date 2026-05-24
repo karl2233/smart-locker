@@ -19,4 +19,5 @@ public interface CategorySelectedRepository extends JpaRepository<CategorySelect
     JOIN cs.category c
 """)
     List<CategorySelectedResponseDto> findSelectedCategoriesWithName();
+    boolean existsByCategory_CategoryId(Long categoryId);
 }

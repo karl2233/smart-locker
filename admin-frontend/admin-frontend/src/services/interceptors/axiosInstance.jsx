@@ -9,27 +9,38 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config) => {
+    // Prefix /admin automatically
     if (config.url && !config.url.startsWith("/admin")) {
       config.url = `/admin${config.url}`;
     }
 
+    // Public auth routes
     const isAuthRoute =
       config.url?.includes("/auth/signin") ||
       config.url?.includes("/auth/signup");
 
-    if (isAuthRoute) return config;
+    if (isAuthRoute) {
+      return config;
+    }
 
     const token = cookieManager.get("authToken");
 
-    if (!token) return config;
+    // No token
+    if (!token) {
+      return config;
+    }
 
+    // Expired token
     if (!isTokenValid(token)) {
       cookieManager.remove("authToken");
       window.location.href = "/signin";
+
       return Promise.reject(new Error("Token expired"));
     }
 
+    // Attach token
     config.headers.Authorization = `Bearer ${token}`;
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -38,14 +49,22 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const url = error.config?.url;
+
+    const isAuthRoute =
+      url?.includes("/auth/signin") ||
+      url?.includes("/auth/signup");
+
+    // Redirect only for protected routes
+    if (status === 401 && !isAuthRoute) {
       cookieManager.remove("authToken");
       window.location.href = "/signin";
     }
 
+    // IMPORTANT: rethrow error
     return Promise.reject(error);
   }
 );
 
-// ✅ EXPORT HERE
 export default axiosInstance;
