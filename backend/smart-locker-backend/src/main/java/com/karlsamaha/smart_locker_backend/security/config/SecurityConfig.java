@@ -54,6 +54,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/admin/api/auth/**").permitAll()
+                        .requestMatchers("/user/api/auth/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/admin/api/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated()
