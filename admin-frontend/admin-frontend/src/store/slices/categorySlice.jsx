@@ -58,25 +58,18 @@ export const deleteCategory = createAsyncThunk(
   }
 );
 
-export const updateCategory = createAsyncThunk(
-  "category/updateCategory",
-  async ({ categoryId, categoryName }, thunkAPI) => {
-    try {
-      const response = await CategoryService.updateCategory(
-        categoryId,
-        categoryName
-      );
+const updateCategory = async (categoryId, categoryName) => {
+  try {
+    const response = await axiosInstance.put(
+      `/admin/api/category/${categoryId}`,
+      { categoryName }
+    );
 
-      return {
-        categoryId,
-        categoryName,
-        message: response.message,
-      };
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error);
-    }
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Failed to update category" };
   }
-);
+};
 
 const initialState = {
   categories: [],

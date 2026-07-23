@@ -4,15 +4,17 @@ import com.karlsamaha.smart_locker_backend.category.entity.CategorySelected;
 import com.karlsamaha.smart_locker_backend.category.repository.CategorySelectedRepository;
 import com.karlsamaha.smart_locker_backend.common.service.FileStorageService;
 import com.karlsamaha.smart_locker_backend.menu.dto.request.CreateItemRequestDto;
-import com.karlsamaha.smart_locker_backend.menu.dto.response.CategorySelectedResponseDto;
-import com.karlsamaha.smart_locker_backend.menu.dto.response.ItemResponseDto;
+import com.karlsamaha.smart_locker_backend.menu.dto.response.*;
 import com.karlsamaha.smart_locker_backend.menu.entity.Item;
 import com.karlsamaha.smart_locker_backend.menu.exception.CategorySelectedNotFoundException;
 import com.karlsamaha.smart_locker_backend.menu.repository.ItemRepository;
 import org.springframework.stereotype.Service;
 import com.karlsamaha.smart_locker_backend.menu.exception.ItemNotFoundException;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AdminMenuServiceImpl implements AdminMenuService {
@@ -85,5 +87,40 @@ public class AdminMenuServiceImpl implements AdminMenuService {
         itemRepository.delete(item);
 
         return itemId;
+    }
+
+    @Override
+    public MenuItemsResponseDto getAllMenuItemsGroupedByCategory() {
+
+        List<ItemCategoryFlatDto> rows =
+                itemRepository.findAllItemsGroupedByCategoryRaw();
+
+        Map<Long, CategoryItemsResponseDto> grouped = new LinkedHashMap<>();
+
+        for (ItemCategoryFlatDto row : rows) {
+
+            grouped.computeIfAbsent(
+                    row.getCategorySelectedId(),
+                    id -> new CategoryItemsResponseDto(
+                            row.getCategoryName(),
+                            row.getCategorySelectedId(),
+                            new ArrayList<>()
+                    )
+            );
+
+            grouped.get(row.getCategorySelectedId())
+                    .getItems()
+                    .add(
+                            new MenuItemResponseDto(
+                                    row.getItemName(),
+                                    row.getItemPrice(),
+                                    row.getItemDescription()
+                            )
+                    );
+        }
+
+        return new MenuItemsResponseDto(
+                new ArrayList<>(grouped.values())
+        );
     }
 }

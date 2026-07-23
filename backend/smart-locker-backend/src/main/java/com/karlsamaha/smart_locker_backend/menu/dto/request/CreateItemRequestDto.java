@@ -1,15 +1,27 @@
 package com.karlsamaha.smart_locker_backend.menu.dto.request;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 
 public class CreateItemRequestDto {
 
+    @NotNull(message = "categorySelectedId is required")
     private Long categorySelectedId;
+
+    @NotBlank(message = "Item title is required")
     private String itemTitle;
+
     private String itemDesc;
+
+    @NotNull(message = "Price is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Price must be greater than 0")
     private BigDecimal price;
+
+    @NotNull(message = "Image is required")
     private MultipartFile image;
 
     public Long getCategorySelectedId() {

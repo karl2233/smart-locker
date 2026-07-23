@@ -62,12 +62,7 @@ const updateCategory = async (categoryId, categoryName) => {
   try {
     const response = await axiosInstance.put(
       `/admin/api/category/${categoryId}`,
-      null,
-      {
-        params: {
-          categoryName,
-        },
-      }
+      { categoryName }
     );
 
     return response.data;

@@ -5,6 +5,7 @@ import com.karlsamaha.smart_locker_backend.auth.dto.app.requests.UserSignupReque
 import com.karlsamaha.smart_locker_backend.auth.dto.app.response.UserAuthResponse;
 import com.karlsamaha.smart_locker_backend.auth.service.app.UserAuthService;
 import com.karlsamaha.smart_locker_backend.common.response.SuccessResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,31 +25,22 @@ public class UserAuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<SuccessResponse<Void>> signup(
-            @RequestBody UserSignupRequestDto request
+            @Valid @RequestBody UserSignupRequestDto request
     ) {
-
         userAuthService.signup(request);
 
-        SuccessResponse<Void> response = new SuccessResponse<>(
-                LocalDateTime.now(),
-                "Signup successful",
-                null
-        );
+        SuccessResponse<Void> response = new SuccessResponse<>(LocalDateTime.now(), "Signup successful", null);
 
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/signin")
     public ResponseEntity<SuccessResponse<UserAuthResponse>> signin(
-            @RequestBody UserSigninRequestDto request
+            @Valid @RequestBody UserSigninRequestDto request
     ) {
         UserAuthResponse authResponse = userAuthService.signin(request);
 
-        SuccessResponse<UserAuthResponse> response = new SuccessResponse<>(
-                LocalDateTime.now(),
-                "Signin successful",
-                authResponse
-        );
+        SuccessResponse<UserAuthResponse> response = new SuccessResponse<>(LocalDateTime.now(), "Signin successful", authResponse);
 
         return ResponseEntity.ok(response);
     }

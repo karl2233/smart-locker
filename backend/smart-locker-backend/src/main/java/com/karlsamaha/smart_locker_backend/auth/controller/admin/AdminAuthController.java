@@ -5,6 +5,7 @@ import com.karlsamaha.smart_locker_backend.auth.dto.admin.requests.AdminSignupRe
 import com.karlsamaha.smart_locker_backend.auth.dto.admin.response.AdminAuthResponse;
 import com.karlsamaha.smart_locker_backend.auth.service.admin.AdminAuthService;
 import com.karlsamaha.smart_locker_backend.common.response.SuccessResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,32 +23,24 @@ public class AdminAuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<SuccessResponse<AdminAuthResponse>> signup(
-            @RequestBody AdminSignupRequest request) {
+            @Valid @RequestBody AdminSignupRequest request) {
 
         AdminAuthResponse adminAuthResponse = authService.signup(request);
 
         SuccessResponse<AdminAuthResponse> response =
-                new SuccessResponse<>(
-                        LocalDateTime.now(),
-                        "Admin created successfully",
-                        adminAuthResponse
-                );
+                new SuccessResponse<>(LocalDateTime.now(), "Admin created successfully", adminAuthResponse);
 
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/signin")
     public ResponseEntity<SuccessResponse<AdminAuthResponse>> signin(
-            @RequestBody AdminSigninRequest request) {
+            @Valid @RequestBody AdminSigninRequest request) {
 
         AdminAuthResponse adminAuthResponse = authService.signin(request);
 
         SuccessResponse<AdminAuthResponse> response =
-                new SuccessResponse<>(
-                        LocalDateTime.now(),
-                        "Admin signed in successfully",
-                        adminAuthResponse
-                );
+                new SuccessResponse<>(LocalDateTime.now(), "Admin signed in successfully", adminAuthResponse);
 
         return ResponseEntity.ok(response);
     }

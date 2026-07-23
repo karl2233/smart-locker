@@ -1,5 +1,6 @@
 package com.karlsamaha.smart_locker_backend.menu.repository;
 
+import com.karlsamaha.smart_locker_backend.menu.dto.response.ItemCategoryFlatDto;
 import com.karlsamaha.smart_locker_backend.menu.dto.response.ItemResponseDto;
 import com.karlsamaha.smart_locker_backend.menu.entity.Item;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -30,4 +31,19 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     boolean existsByCategorySelected_CategorySelectedId(
             Long categorySelectedId
     );
+
+    @Query("""
+        SELECT new com.karlsamaha.smart_locker_backend.menu.dto.response.ItemCategoryFlatDto(
+            cs.categorySelectedId,
+            c.categoryName,
+            i.itemTitle,
+            i.price,
+            i.itemDesc
+        )
+        FROM Item i
+        JOIN i.categorySelected cs
+        JOIN cs.category c
+        ORDER BY c.categoryName, i.itemTitle
+        """)
+    List<ItemCategoryFlatDto> findAllItemsGroupedByCategoryRaw();
 }

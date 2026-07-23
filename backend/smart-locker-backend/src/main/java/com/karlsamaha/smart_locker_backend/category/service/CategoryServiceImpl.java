@@ -1,6 +1,5 @@
 package com.karlsamaha.smart_locker_backend.category.service;
 
-
 import com.karlsamaha.smart_locker_backend.category.dto.req.CategoriesSelectedRequestDto;
 import com.karlsamaha.smart_locker_backend.category.dto.req.CategoryRequestDto;
 import com.karlsamaha.smart_locker_backend.category.dto.resp.CategoryManagementResponseDto;
@@ -38,14 +37,11 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public CategoryResponseDto createCategory(CategoryRequestDto categoryRequestDto) {
-
         Category category = new Category();
         BeanUtils.copyProperties(categoryRequestDto, category);
 
-        // 🔥 This returns the saved entity (with ID)
         Category savedCategory = categoryRepository.save(category);
 
-        // map to DTO
         CategoryResponseDto responseDto = new CategoryResponseDto();
         BeanUtils.copyProperties(savedCategory, responseDto);
 
@@ -53,7 +49,6 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     public CategoryManagementResponseDto getCategoryManagementData() {
-
         List<CategoryResponseDto> categories = categoryRepository.findAll()
                 .stream()
                 .map(category -> new CategoryResponseDto(
@@ -72,23 +67,16 @@ public class CategoryServiceImpl implements CategoryService {
                         ))
                         .collect(Collectors.toList());
 
-        return new CategoryManagementResponseDto(
-                categories,
-                categoriesSelected
-        );
+        return new CategoryManagementResponseDto(categories, categoriesSelected);
     }
 
     @Override
     public List<CategoryResponseDto> selectCategories(CategoriesSelectedRequestDto requestDto) {
-
         List<Long> requestedIds = requestDto.getCategoryIds();
 
         if (requestedIds != null && !requestedIds.isEmpty()) {
-
-            // remove duplicates from request
             requestedIds = requestedIds.stream().distinct().toList();
 
-            // get existing ones
             List<CategorySelected> existing =
                     categorySelectedRepository.findByCategory_CategoryIdIn(requestedIds);
 
@@ -96,7 +84,6 @@ public class CategoryServiceImpl implements CategoryService {
                     .map(cs -> cs.getCategory().getCategoryId())
                     .toList();
 
-            // filter new ones
             List<Long> idsToInsert = requestedIds.stream()
                     .filter(id -> !existingIds.contains(id))
                     .toList();
@@ -124,22 +111,15 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public void deleteSelectedCategory(Long categorySelectedId) {
-
         CategorySelected categorySelected = categorySelectedRepository
                 .findById(categorySelectedId)
-                .orElseThrow(() ->
-                        new CategorySelectedException(
-                                "Selected category not found"
-                        )
-                );
+                .orElseThrow(() -> new CategorySelectedException("Selected category not found"));
 
         boolean hasItems = itemRepository
                 .existsByCategorySelected_CategorySelectedId(categorySelectedId);
 
         if (hasItems) {
-            throw new CategorySelectedException(
-                    "Delete items first, then delete this category"
-            );
+            throw new CategorySelectedException("Delete items first, then delete this category");
         }
 
         categorySelectedRepository.delete(categorySelected);
@@ -147,37 +127,25 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public void deleteCategory(Long categoryId) {
-
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() ->
-                        new CategoryException("Category not found")
-                );
+                .orElseThrow(() -> new CategoryException("Category not found"));
 
         boolean isSelected = categorySelectedRepository
                 .existsByCategory_CategoryId(categoryId);
 
         if (isSelected) {
-            throw new CategoryException(
-                    "Unselect this category first, then delete it"
-            );
+            throw new CategoryException("Unselect this category first, then delete it");
         }
 
         categoryRepository.delete(category);
     }
 
     @Override
-    public String updateCategory(
-            Long categoryId,
-            String categoryName
-    ) {
-
+    public String updateCategory(Long categoryId, String categoryName) {
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() ->
-                        new CategoryException("Category not found")
-                );
+                .orElseThrow(() -> new CategoryException("Category not found"));
 
         category.setCategoryName(categoryName);
-
         categoryRepository.save(category);
 
         return "Category updated successfully";
