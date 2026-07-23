@@ -61,7 +61,7 @@ public class AdminAuthService {
         User savedUser = userRepository.save(user);
 
         UserDetails userDetails = org.springframework.security.core.userdetails.User
-                .withUsername(savedUser.getName())
+                .withUsername(savedUser.getEmail())   // was savedUser.getName()
                 .password(savedUser.getPassword())
                 .authorities(savedUser.getRole().getRoleName())
                 .build();

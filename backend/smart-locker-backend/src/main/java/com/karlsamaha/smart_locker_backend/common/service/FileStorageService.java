@@ -1,6 +1,7 @@
 package com.karlsamaha.smart_locker_backend.common.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -22,7 +23,8 @@ public class FileStorageService {
                 Files.createDirectories(uploadPath);
             }
 
-            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+            String ext = StringUtils.getFilenameExtension(file.getOriginalFilename());
+            String fileName = UUID.randomUUID() + (ext != null ? "." + ext : "");
 
             Path filePath = uploadPath.resolve(fileName);
 
