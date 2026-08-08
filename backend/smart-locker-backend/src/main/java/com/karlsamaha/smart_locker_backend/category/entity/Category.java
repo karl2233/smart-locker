@@ -3,7 +3,13 @@ package com.karlsamaha.smart_locker_backend.category.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "categories")
+@Table(
+        name = "categories",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_categories_category_name",
+                columnNames = "category_name"
+        )
+)
 public class Category {
 
     @Id
@@ -11,7 +17,7 @@ public class Category {
     @Column(name = "category_id")
     private Long categoryId;
 
-    @Column(name = "category_name", nullable = false)
+    @Column(name = "category_name", nullable = false, length = 100)
     private String categoryName;
 
     public Category() {

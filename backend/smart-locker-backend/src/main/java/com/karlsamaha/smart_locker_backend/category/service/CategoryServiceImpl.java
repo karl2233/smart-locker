@@ -9,13 +9,16 @@ import com.karlsamaha.smart_locker_backend.category.entity.Category;
 import com.karlsamaha.smart_locker_backend.category.entity.CategorySelected;
 import com.karlsamaha.smart_locker_backend.category.exception.CategoryException;
 import com.karlsamaha.smart_locker_backend.category.exception.CategorySelectedException;
+import com.karlsamaha.smart_locker_backend.category.exception.DuplicateCategoryException;
 import com.karlsamaha.smart_locker_backend.category.repository.CategoryRepository;
 import com.karlsamaha.smart_locker_backend.category.repository.CategorySelectedRepository;
 import com.karlsamaha.smart_locker_backend.menu.repository.ItemRepository;
 import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,16 +39,15 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public CategoryResponseDto createCategory(CategoryRequestDto categoryRequestDto) {
-        Category category = new Category();
-        BeanUtils.copyProperties(categoryRequestDto, category);
+    public CategoryResponseDto createCategory(CategoryRequestDto dto) {
+        Category saved;
+        try {
+            saved = categoryRepository.saveAndFlush(new Category(null, dto.getCategoryName()));
+        } catch (DataIntegrityViolationException ex) {
+            throw new DuplicateCategoryException("Category already exists: " + dto.getCategoryName(), ex);
+        }
 
-        Category savedCategory = categoryRepository.save(category);
-
-        CategoryResponseDto responseDto = new CategoryResponseDto();
-        BeanUtils.copyProperties(savedCategory, responseDto);
-
-        return responseDto;
+        return new CategoryResponseDto(saved.getCategoryId(), saved.getCategoryName());
     }
 
     public CategoryManagementResponseDto getCategoryManagementData() {

@@ -7,7 +7,11 @@ import com.karlsamaha.smart_locker_backend.menu.dto.request.CreateItemRequestDto
 import com.karlsamaha.smart_locker_backend.menu.dto.response.*;
 import com.karlsamaha.smart_locker_backend.menu.entity.Item;
 import com.karlsamaha.smart_locker_backend.menu.exception.CategorySelectedNotFoundException;
+import com.karlsamaha.smart_locker_backend.menu.exception.FileStorageException;
+import com.karlsamaha.smart_locker_backend.menu.exception.ItemCreationFailedException;
 import com.karlsamaha.smart_locker_backend.menu.repository.ItemRepository;
+import jakarta.transaction.Transactional;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import com.karlsamaha.smart_locker_backend.menu.exception.ItemNotFoundException;
 
@@ -38,28 +42,42 @@ public class AdminMenuServiceImpl implements AdminMenuService {
         return categorySelectedRepository.findSelectedCategoriesWithName();
     }
 
+    private static final String ITEM_IMAGE_STORAGE_PATH = "uploads/menu/items";
+    private static final String ITEM_IMAGE_URL_PATH = "/uploads/menu/items";
+
     @Override
+    @Transactional
     public ItemResponseDto createItem(CreateItemRequestDto request) {
 
         CategorySelected categorySelected = categorySelectedRepository
                 .findById(request.getCategorySelectedId())
                 .orElseThrow(CategorySelectedNotFoundException::new);
 
-        String imageUrl = fileStorageService.storeFile(
-                request.getImage(),
-                "uploads/menu/items",
-                "/uploads/menu/items"
-        );
+        String imageUrl;
+        try {
+            imageUrl = fileStorageService.storeFile(
+                    request.getImage(),
+                    ITEM_IMAGE_STORAGE_PATH,
+                    ITEM_IMAGE_URL_PATH
+            );
+        } catch (FileStorageException e) {
+            throw new ItemCreationFailedException(e);
+        }
 
         Item item = new Item();
-
         item.setCategorySelected(categorySelected);
         item.setItemTitle(request.getItemTitle());
         item.setItemDesc(request.getItemDesc());
         item.setPrice(request.getPrice());
         item.setItemImageUrl(imageUrl);
 
-        Item savedItem = itemRepository.save(item);
+        Item savedItem;
+        try {
+            savedItem = itemRepository.saveAndFlush(item);
+        } catch (DataAccessException e) {
+            fileStorageService.deleteFile(ITEM_IMAGE_STORAGE_PATH, imageUrl);
+            throw new ItemCreationFailedException(e);
+        }
 
         return new ItemResponseDto(
                 savedItem.getItemId(),
