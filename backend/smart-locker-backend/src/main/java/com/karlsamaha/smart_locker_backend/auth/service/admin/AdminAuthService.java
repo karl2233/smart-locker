@@ -1,8 +1,5 @@
 package com.karlsamaha.smart_locker_backend.auth.service.admin;
 
-
-
-
 import com.karlsamaha.smart_locker_backend.auth.dto.admin.requests.AdminSigninRequest;
 import com.karlsamaha.smart_locker_backend.auth.dto.admin.requests.AdminSignupRequest;
 import com.karlsamaha.smart_locker_backend.auth.dto.admin.response.AdminAuthResponse;
@@ -26,18 +23,15 @@ public class AdminAuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
 
     public AdminAuthService(UserRepository userRepository,
                             RoleRepository roleRepository,
                             PasswordEncoder passwordEncoder,
-                            AuthenticationManager authenticationManager,
                             JwtService jwtService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
     }
 

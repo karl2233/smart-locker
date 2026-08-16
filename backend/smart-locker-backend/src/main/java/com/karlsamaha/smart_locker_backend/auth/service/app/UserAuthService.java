@@ -36,7 +36,6 @@ public class UserAuthService {
         this.jwtService = jwtService;
     }
 
-    @Transactional
     public void signup(UserSignupRequestDto request) {
 
         if (request.getName() == null || request.getName().isBlank()) {

@@ -2,6 +2,7 @@ package com.karlsamaha.smart_locker_backend.security.config;
 
 import com.karlsamaha.smart_locker_backend.security.jwt.JwtAuthenticationFilter;
 import com.karlsamaha.smart_locker_backend.security.service.CustomUserDetailsService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +14,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -58,6 +60,7 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/admin/api/auth/**").permitAll()
                         .requestMatchers("/user/api/auth/**").permitAll()
@@ -86,5 +89,11 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
+    }
+
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) ->
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
     }
 }
