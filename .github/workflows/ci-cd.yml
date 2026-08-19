@@ -1,0 +1,322 @@
+name: CI/CD
+
+# One rule per branch:
+#
+#   dev   -> unit tests, build the images, run the stack, publish to GHCR
+#   test  -> no rebuild. Re-tag the dev image as :test and announce the deploy
+#   main  -> no rebuild. Re-tag the test image as :prod and announce the deploy
+#
+# The workflow decides WHEN things run; docker-compose.yml defines the stack.
+# Unit tests build the `test` stage of each Dockerfile directly.
+
+on:
+  push:
+    branches: [dev, test, main]
+  pull_request:
+    branches: [dev, test, main]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # CHANGE THESE to your own owner/repo. GHCR paths must be lowercase.
+  #
+  # Named *_IMAGE_NAME, not *_IMAGE, on purpose: docker-compose.yml reads
+  # ${BACKEND_IMAGE} / ${FRONTEND_IMAGE}, and a shell environment variable
+  # OUTRANKS the .env file in compose. Reusing those names here would silently
+  # override the tagged values written into .env and publish everything as
+  # :latest.
+  BACKEND_IMAGE_NAME: ghcr.io/karlsamaha/smart-locker/smart-locker-backend
+  FRONTEND_IMAGE_NAME: ghcr.io/karlsamaha/smart-locker/admin-frontend
+
+jobs:
+
+  # =========================================================================
+  # DEV — the only branch that compiles anything.
+  # =========================================================================
+
+  unit-tests:
+    name: dev · unit tests
+    if: github.ref_name == 'dev' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Each Dockerfile's `test` stage runs mvn verify / vitest as part of the
+      # build, so a red suite fails this step. --no-cache because a cached
+      # layer would report success without re-running anything.
+      - name: Backend suite
+        run: docker build --no-cache --target test ./smart-locker-backend
+
+      - name: Frontend suite
+        run: docker build --no-cache --target test ./admin-frontend
+
+  build:
+    name: dev · build, run and publish
+    if: github.ref_name == 'dev' && github.event_name == 'push'
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write .env from the dev environment
+        env:
+          # Everything from GitHub arrives as an environment variable rather
+          # than being interpolated into the script body — a ${{ }} expression
+          # written inline becomes part of the shell source and can break or
+          # inject on an unexpected character.
+          #
+          # The fallbacks are the same throwaway values committed in
+          # application-dev.properties: this database is created and destroyed
+          # inside this job, so there is nothing here worth protecting. The
+          # secrets are still read first, because that is the path a real
+          # environment uses and it should be exercised, not assumed.
+          # A fork with no configuration still runs green.
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'fPMhgKsluATcQbCuLhsUfTGx7bP6Z5c4bpCVHX+FfE4=' }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'password' }}
+          USING_SECRETS: ${{ secrets.JWT_SECRET != '' }}
+          PROFILE: ${{ vars.SPRING_PROFILES_ACTIVE || 'prod' }}
+        run: |
+          if [ "$USING_SECRETS" = "true" ]; then
+            echo "Credentials came from the dev GitHub Environment."
+          else
+            echo "::notice::No dev environment secrets configured — using the committed throwaway values."
+          fi
+          {
+            printf 'BACKEND_IMAGE=%s:dev\n'  "$BACKEND_IMAGE_NAME"
+            printf 'FRONTEND_IMAGE=%s:dev\n' "$FRONTEND_IMAGE_NAME"
+            printf 'APP_STAGE=dev\n'
+            printf 'SPRING_PROFILES_ACTIVE=%s\n' "$PROFILE"
+            printf 'DB_NAME=locker_db\n'
+            printf 'DB_USERNAME=postgres\n'
+            printf 'DB_PASSWORD=%s\n' "$DB_PASSWORD"
+            printf 'DB_PORT=3005\n'
+            printf 'DDL_AUTO=update\n'
+            printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+            printf 'API_PORT=8080\n'
+            printf 'WEB_PORT=8081\n'
+            printf 'CORS_ALLOWED_ORIGINS=http://localhost:8081\n'
+            printf 'API_BASE_URL=http://localhost:8080\n'
+          } > .env
+          chmod 600 .env
+
+      - name: Show the resolved configuration
+        run: docker compose config --quiet && docker compose images --quiet || true
+
+      # ---- build once ----
+      - name: Build the runtime images
+        run: docker compose build
+
+      # ---- prove they run before anything is published ----
+      - name: Start the stack
+        run: docker compose up -d --no-build --wait --wait-timeout 300
+
+      - name: Smoke test
+        run: |
+          # Length only — the secret itself never reaches the log.
+          LEN=$(docker compose exec -T backend sh -c 'printf "%s" "$JWT_SECRET" | wc -c' | tr -d '[:space:]')
+          echo "JWT_SECRET reached the JVM, length $LEN"
+          [ "$LEN" -gt 0 ] || exit 1
+
+          curl -fsS http://localhost:8080/actuator/health | grep -q '"status":"UP"'
+          curl -fsS http://localhost:8081/config.js | grep -q 'API_BASE_URL'
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v --remove-orphans
+
+      # Skipped automatically if any step above failed, so a broken build is
+      # never published.
+      - name: Publish to GHCR
+        run: |
+          docker compose push backend frontend
+
+          # Immutable second tag, so any run traces back to its commit.
+          SHA="sha-${GITHUB_SHA::7}"
+          docker tag  "${BACKEND_IMAGE_NAME}:dev"  "${BACKEND_IMAGE_NAME}:${SHA}"
+          docker tag  "${FRONTEND_IMAGE_NAME}:dev" "${FRONTEND_IMAGE_NAME}:${SHA}"
+          docker push "${BACKEND_IMAGE_NAME}:${SHA}"
+          docker push "${FRONTEND_IMAGE_NAME}:${SHA}"
+
+      - name: Announce
+        run: |
+          echo "DEPLOYED TO DEV"
+          echo "  ${BACKEND_IMAGE_NAME}:dev"
+          echo "  ${FRONTEND_IMAGE_NAME}:dev"
+          echo "  commit ${GITHUB_SHA::7}"
+          echo "Portfolio project — no infrastructure attached."
+
+  # =========================================================================
+  # TEST — no checkout, no compiler, no tests. Just move the tag.
+  # =========================================================================
+
+  deploy-test:
+    name: test · deploy
+    if: github.ref_name == 'test' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # `imagetools create` adds a tag to an existing manifest. Nothing is
+      # pulled, nothing is rebuilt, and the digest is unchanged — that is what
+      # makes this a promotion rather than a second build.
+      - name: Promote dev → test
+        run: |
+          set -euo pipefail
+          for IMG in "$BACKEND_IMAGE_NAME" "$FRONTEND_IMAGE_NAME"; do
+            docker buildx imagetools inspect "${IMG}:dev" >/dev/null 2>&1 \
+              || { echo "::error::${IMG}:dev does not exist — merge into dev first so it gets built"; exit 1; }
+            docker buildx imagetools create -t "${IMG}:test" "${IMG}:dev"
+          done
+
+      - name: Announce
+        run: |
+          BD=$(docker buildx imagetools inspect "${BACKEND_IMAGE_NAME}:test"  --format '{{.Manifest.Digest}}')
+          FD=$(docker buildx imagetools inspect "${FRONTEND_IMAGE_NAME}:test" --format '{{.Manifest.Digest}}')
+          echo "DEPLOYED TO TEST — promoted from dev, not rebuilt"
+          echo "  backend  ${BD}"
+          echo "  frontend ${FD}"
+          echo "Portfolio project — no infrastructure attached."
+
+      # ==================================================================
+      # What the real step would look like, kept commented because this
+      # repository has no host to deploy to. Nothing below executes.
+      #
+      # It needs three secrets on the `test` environment: SSH_HOST,
+      # SSH_USER, SSH_PRIVATE_KEY.
+      #
+      # Note API_BASE_URL, not VITE_API_BASE_URL. The image is built once
+      # and carries no API URL inside it — a VITE_* variable at this point
+      # would be read by nothing, because Vite only sees those at build
+      # time. The entrypoint reads API_BASE_URL and writes config.js when
+      # the container starts, which is what lets this same image run in
+      # test and prod against different backends.
+      # ==================================================================
+      #
+      # - name: Deploy to the test host
+      #   env:
+      #     SSH_HOST: ${{ secrets.SSH_HOST }}
+      #     SSH_USER: ${{ secrets.SSH_USER }}
+      #     SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     API_BASE_URL: ${{ vars.API_BASE_URL }}
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     printf '%s' "$SSH_KEY" > ~/.ssh/id_ed25519
+      #     chmod 600 ~/.ssh/id_ed25519
+      #
+      #     ssh -o StrictHostKeyChecking=accept-new "$SSH_USER@$SSH_HOST" \
+      #       API_BASE_URL="$API_BASE_URL" 'bash -s' <<'REMOTE'
+      #       set -euo pipefail
+      #
+      #       docker pull ghcr.io/karlsamaha/smart-locker/admin-frontend:test
+      #       docker rm -f admin-frontend 2>/dev/null || true
+      #       docker run -d \
+      #         --name admin-frontend \
+      #         --restart unless-stopped \
+      #         -p 80:80 \
+      #         -e API_BASE_URL="$API_BASE_URL" \
+      #         -e APP_STAGE=test \
+      #         ghcr.io/karlsamaha/smart-locker/admin-frontend:test
+      # REMOTE
+      #
+      # In practice you would ship docker-compose.yml to the host and run
+      # `docker compose pull && docker compose up -d` there instead, so the
+      # backend and database come along with it. The single `docker run`
+      # above is the shortest thing that shows the shape.
+
+  # =========================================================================
+  # PROD — same shape, one link further down the chain.
+  # =========================================================================
+
+  deploy-prod:
+    name: prod · deploy
+    if: github.ref_name == 'main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promote test → prod
+        run: |
+          set -euo pipefail
+          for IMG in "$BACKEND_IMAGE_NAME" "$FRONTEND_IMAGE_NAME"; do
+            docker buildx imagetools inspect "${IMG}:test" >/dev/null 2>&1 \
+              || { echo "::error::${IMG}:test does not exist — promote through test first"; exit 1; }
+            docker buildx imagetools create -t "${IMG}:prod" "${IMG}:test"
+          done
+
+      - name: Announce
+        run: |
+          BD=$(docker buildx imagetools inspect "${BACKEND_IMAGE_NAME}:prod"  --format '{{.Manifest.Digest}}')
+          FD=$(docker buildx imagetools inspect "${FRONTEND_IMAGE_NAME}:prod" --format '{{.Manifest.Digest}}')
+          echo "DEPLOYED TO PROD — promoted from test, not rebuilt"
+          echo "  backend  ${BD}"
+          echo "  frontend ${FD}"
+          echo "Portfolio project — no infrastructure attached."
+
+      # ==================================================================
+      # Same shape as the test job, against the prod host. Commented out —
+      # nothing below executes.
+      #
+      # A real prod step would deploy by DIGEST rather than by the :prod
+      # tag, so a rollback is one digest away and a moving tag can never
+      # put an unexpected build on the host.
+      # ==================================================================
+      #
+      # - name: Deploy to the prod host
+      #   env:
+      #     SSH_HOST: ${{ secrets.SSH_HOST }}
+      #     SSH_USER: ${{ secrets.SSH_USER }}
+      #     SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     API_BASE_URL: ${{ vars.API_BASE_URL }}
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     printf '%s' "$SSH_KEY" > ~/.ssh/id_ed25519
+      #     chmod 600 ~/.ssh/id_ed25519
+      #
+      #     DIGEST=$(docker buildx imagetools inspect \
+      #       "${FRONTEND_IMAGE_NAME}:prod" --format '{{.Manifest.Digest}}')
+      #
+      #     ssh -o StrictHostKeyChecking=accept-new "$SSH_USER@$SSH_HOST" \
+      #       DIGEST="$DIGEST" API_BASE_URL="$API_BASE_URL" 'bash -s' <<'REMOTE'
+      #       set -euo pipefail
+      #
+      #       IMG="ghcr.io/karlsamaha/smart-locker/admin-frontend@${DIGEST}"
+      #       docker pull "$IMG"
+      #       docker rm -f admin-frontend 2>/dev/null || true
+      #       docker run -d \
+      #         --name admin-frontend \
+      #         --restart unless-stopped \
+      #         -p 80:80 \
+      #         -e API_BASE_URL="$API_BASE_URL" \
+      #         -e APP_STAGE=prod \
+      #         "$IMG"
+      # REMOTE

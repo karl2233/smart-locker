@@ -33,3 +33,14 @@ coverage/
 *.njsproj
 *.sln
 *.sw?
+
+# Env
+# .env.development is committed on purpose — localhost only, no secrets.
+# Staging/production values are injected by CI at build time.
+.env
+.env.staging
+.env.production
+.env.local
+.env.*.local
+!.env.development
+!.env.*.example

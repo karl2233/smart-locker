@@ -2,8 +2,24 @@ import axios from "axios";
 import { cookieManager } from "../../shared/utils/cookie";
 import { isTokenValid } from "../../shared/utils/token";
 
+/**
+ * Resolution order for the API base URL:
+ *
+ *   1. window.__APP_CONFIG__.API_BASE_URL — written into /config.js by the
+ *      container at start-up. This is what dev/test/prod use, and it is why
+ *      one image can serve all three stages.
+ *   2. import.meta.env.VITE_API_BASE_URL — `npm run dev` and Vitest, where no
+ *      container is involved.
+ *   3. "" — same origin, for the nginx reverse-proxy setup.
+ */
+const runtimeConfig =
+  typeof window !== "undefined" ? window.__APP_CONFIG__ ?? {} : {};
+
+const baseURL =
+  runtimeConfig.API_BASE_URL ?? import.meta.env.VITE_API_BASE_URL ?? "";
+
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8080",
+  baseURL,
   withCredentials: true,
 });
 
@@ -53,8 +69,7 @@ axiosInstance.interceptors.response.use(
     const url = error.config?.url;
 
     const isAuthRoute =
-      url?.includes("/auth/signin") ||
-      url?.includes("/auth/signup");
+      url?.includes("/auth/signin") || url?.includes("/auth/signup");
 
     // Redirect only for protected routes
     if (status === 401 && !isAuthRoute) {
